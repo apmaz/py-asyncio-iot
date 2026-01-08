@@ -22,34 +22,43 @@ async def main() -> None:
     )
 
     # create a few programs
-    wake_up_program_run_parallel = [
-        Message(hue_light_id, MessageType.SWITCH_ON),
-        Message(speaker_id, MessageType.SWITCH_ON),
-    ]
-
-    wake_up_program_run_sequence = [
-        Message(
-            speaker_id,
-            MessageType.PLAY_SONG, "Rick Astley - Never Gonna Give You Up"
+    async def wake_up_program(hue_light_id: str, speaker_id: str) -> None:
+        await service.run_parallel(
+            [
+                Message(hue_light_id, MessageType.SWITCH_ON),
+                Message(speaker_id, MessageType.SWITCH_ON),
+            ]
         )
-    ]
+        await service.run_sequence(
+            [
+                Message(
+                    speaker_id,
+                    MessageType.PLAY_SONG, "Rick Astley - "
+                                           "Never Gonna Give You Up"
+                )
+            ]
+        )
 
-    sleep_program_run_parallel = [
-        Message(speaker_id, MessageType.SWITCH_OFF),
-        Message(hue_light_id, MessageType.SWITCH_OFF),
-    ]
+    async def sleep_program(
+            hue_light_id: str,
+            speaker_id: str,
+            toilet_id: str
+    ) -> None:
+        await service.run_parallel(
+            [
+                Message(speaker_id, MessageType.SWITCH_OFF),
+                Message(hue_light_id, MessageType.SWITCH_OFF),
+            ]
+        )
+        await service.run_sequence(
+            [
+                Message(toilet_id, MessageType.CLEAN),
+                Message(toilet_id, MessageType.FLUSH),
+            ]
+        )
 
-    sleep_program_part_run_sequence = [
-        Message(toilet_id, MessageType.FLUSH),
-        Message(toilet_id, MessageType.CLEAN),
-    ]
-
-    # run the programs
-    await service.run_parallel(wake_up_program_run_parallel)
-    await service.run_sequence(wake_up_program_run_sequence)
-
-    await service.run_parallel(sleep_program_run_parallel)
-    await service.run_sequence(sleep_program_part_run_sequence)
+    await wake_up_program(hue_light_id, speaker_id)
+    await sleep_program(hue_light_id, speaker_id, toilet_id)
 
 
 if __name__ == "__main__":
