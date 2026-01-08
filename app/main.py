@@ -1,7 +1,5 @@
 import asyncio
 import time
-from asyncio import gather
-from os import pread
 
 from iot.devices import HueLightDevice, SmartSpeakerDevice, SmartToiletDevice
 from iot.message import Message, MessageType
@@ -16,32 +14,42 @@ async def main() -> None:
     hue_light = HueLightDevice()
     speaker = SmartSpeakerDevice()
     toilet = SmartToiletDevice()
-    hue_light_id = service.register_device(hue_light)
-    speaker_id = service.register_device(speaker)
-    toilet_id = service.register_device(toilet)
 
-    res = await asyncio.gather(hue_light_id, speaker_id, toilet_id)
-    hue_light_id=res[0]
-    speaker_id=res[1]
-    toilet_id=res[2]
+    hue_light_id, speaker_id, toilet_id = await asyncio.gather(
+        service.register_device(hue_light),
+        service.register_device(speaker),
+        service.register_device(toilet),
+    )
 
     # create a few programs
-    wake_up_program = [
+    wake_up_program_run_parallel = [
         Message(hue_light_id, MessageType.SWITCH_ON),
         Message(speaker_id, MessageType.SWITCH_ON),
-        Message(speaker_id, MessageType.PLAY_SONG, "Rick Astley - Never Gonna Give You Up"),
     ]
 
-    sleep_program = [
-        Message(hue_light_id, MessageType.SWITCH_OFF),
+    wake_up_program_run_sequence = [
+        Message(
+            speaker_id,
+            MessageType.PLAY_SONG, "Rick Astley - Never Gonna Give You Up"
+        )
+    ]
+
+    sleep_program_run_parallel = [
         Message(speaker_id, MessageType.SWITCH_OFF),
+        Message(hue_light_id, MessageType.SWITCH_OFF),
+    ]
+
+    sleep_program_part_run_sequence = [
         Message(toilet_id, MessageType.FLUSH),
         Message(toilet_id, MessageType.CLEAN),
     ]
 
     # run the programs
-    await asyncio.gather(service.run_program(wake_up_program))
-    await asyncio.gather(service.run_program(sleep_program))
+    await service.run_parallel(wake_up_program_run_parallel)
+    await service.run_sequence(wake_up_program_run_sequence)
+
+    await service.run_parallel(sleep_program_run_parallel)
+    await service.run_sequence(sleep_program_part_run_sequence)
 
 
 if __name__ == "__main__":
